@@ -8,8 +8,45 @@ import {
 import Worker from "./worker.ts?worker";
 import { v4 as uuidv4 } from "uuid";
 
+const initialTransformation: Transformation = {
+  x: 0.7,
+  y: 0,
+  zoom: 1.6,
+};
+
+let transformation: Transformation = { ...initialTransformation };
+
+// Modify transformation on keypress
+document.addEventListener("keydown", (e) => {
+  const stepSize = 0.3 / transformation.zoom;
+  switch (e.key) {
+    case "ArrowUp":
+      transformation.y += stepSize;
+      break;
+    case "ArrowDown":
+      transformation.y -= stepSize;
+      break;
+    case "ArrowLeft":
+      transformation.x += stepSize;
+      break;
+    case "ArrowRight":
+      transformation.x -= stepSize;
+      break;
+    case "z":
+      transformation.zoom *= 1.2;
+      break;
+    case "x":
+      transformation.zoom /= 1.2;
+      break;
+    case "r":
+      transformation = { ...initialTransformation };
+      break;
+  }
+
+  drawImg();
+});
+
 // CANVAS
-const button = document.querySelector("button") as HTMLButtonElement;
 const canvas = document.querySelector("#canvas") as HTMLCanvasElement;
 
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
@@ -17,19 +54,7 @@ const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 const width = canvas.width;
 const height = canvas.height;
 
-button.addEventListener("click", () => drawImg(200));
-// button.addEventListener("click", testBlockSizes);
-
-// async function testBlockSizes() {
-//   const sizes = [800, 700, 600, 500, 400, 300, 200, 100, 50, 25, 10];
-
-//   for (const size of sizes) {
-//     const start = performance.now();
-//     await drawImg(size);
-//     const end = performance.now();
-//     console.log(`${Math.round(end - start)} ms for ${size}x${size} tiles`);
-//   }
-// }
+drawImg();
 
 function drawArea(start: Coordinate, end: Coordinate, colors: Color[][]) {
   const imageData = ctx.createImageData(end.x - start.x, end.y - start.y);
@@ -48,18 +73,12 @@ function drawArea(start: Coordinate, end: Coordinate, colors: Color[][]) {
   ctx.putImageData(imageData, start.x, start.y);
 }
 
-function drawImg(tileSize: number): Promise<void> {
+function drawImg(tileSize: number = 200): Promise<void> {
   return new Promise((resolve) => {
     const worker = new Worker();
     worker.addEventListener("message", receiveMessage);
 
     const tasks: WorkerInput[] = [];
-
-    const transformation: Transformation = {
-      x: 0.7,
-      y: 0,
-      zoom: 1.6,
-    };
 
     for (let i = 0; i < width; i += tileSize) {
       for (let j = 0; j < height; j += tileSize) {
