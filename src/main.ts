@@ -1,4 +1,10 @@
-import { Color, Coordinate, WorkerInput, WorkerOutput } from "./types";
+import {
+  Color,
+  Coordinate,
+  Transformation,
+  WorkerInput,
+  WorkerOutput,
+} from "./types";
 import Worker from "./worker.ts?worker";
 import { v4 as uuidv4 } from "uuid";
 
@@ -11,19 +17,19 @@ const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 const width = canvas.width;
 const height = canvas.height;
 
-// button.addEventListener("click", () => drawImg(100));
-button.addEventListener("click", testBlockSizes);
+button.addEventListener("click", () => drawImg(200));
+// button.addEventListener("click", testBlockSizes);
 
-async function testBlockSizes() {
-  const sizes = [800, 700, 600, 500, 400, 300, 200, 100, 50, 25, 10];
+// async function testBlockSizes() {
+//   const sizes = [800, 700, 600, 500, 400, 300, 200, 100, 50, 25, 10];
 
-  for (const size of sizes) {
-    const start = performance.now();
-    await drawImg(size);
-    const end = performance.now();
-    console.log(`${Math.round(end - start)} ms for ${size}x${size} tiles`);
-  }
-}
+//   for (const size of sizes) {
+//     const start = performance.now();
+//     await drawImg(size);
+//     const end = performance.now();
+//     console.log(`${Math.round(end - start)} ms for ${size}x${size} tiles`);
+//   }
+// }
 
 function drawArea(start: Coordinate, end: Coordinate, colors: Color[][]) {
   const imageData = ctx.createImageData(end.x - start.x, end.y - start.y);
@@ -49,6 +55,12 @@ function drawImg(tileSize: number): Promise<void> {
 
     const tasks: WorkerInput[] = [];
 
+    const transformation: Transformation = {
+      x: 0.7,
+      y: 0,
+      zoom: 1.6,
+    };
+
     for (let i = 0; i < width; i += tileSize) {
       for (let j = 0; j < height; j += tileSize) {
         const start: Coordinate = { x: i, y: j };
@@ -57,7 +69,14 @@ function drawImg(tileSize: number): Promise<void> {
           y: Math.min(j + tileSize, height),
         };
         const id = uuidv4();
-        const task: WorkerInput = { id, start, end };
+        const task: WorkerInput = {
+          id,
+          start,
+          end,
+          width,
+          height,
+          transformation,
+        };
         tasks.push(task);
       }
     }
@@ -65,7 +84,15 @@ function drawImg(tileSize: number): Promise<void> {
     const outstandingTaskIds = tasks.map((task) => task.id);
 
     function receiveMessage(e: MessageEvent<WorkerOutput>) {
-      drawArea(e.data.start, e.data.end, e.data.colors);
+      const colors: Color[][] = e.data.values.map((row) =>
+        row.map((shade) => ({
+          r: shade * 255,
+          g: shade * 255,
+          b: shade * 255,
+        }))
+      );
+
+      drawArea(e.data.start, e.data.end, colors);
       const index = outstandingTaskIds.indexOf(e.data.id);
       if (index > -1) {
         outstandingTaskIds.splice(index, 1);
