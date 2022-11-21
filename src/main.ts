@@ -7,6 +7,7 @@ import {
 } from "./types";
 import Worker from "./worker.ts?worker";
 import { v4 as uuidv4 } from "uuid";
+import { shaders } from "./shaders";
 
 const initialTransformation: Transformation = {
   x: 0.7,
@@ -15,6 +16,7 @@ const initialTransformation: Transformation = {
 };
 
 let transformation: Transformation = { ...initialTransformation };
+const selectedShader = shaders.blue;
 
 // Modify transformation on keypress
 document.addEventListener("keydown", (e) => {
@@ -104,11 +106,7 @@ function drawImg(tileSize: number = 200): Promise<void> {
 
     function receiveMessage(e: MessageEvent<WorkerOutput>) {
       const colors: Color[][] = e.data.values.map((row) =>
-        row.map((shade) => ({
-          r: shade * 255,
-          g: shade * 255,
-          b: shade * 255,
-        }))
+        row.map(selectedShader)
       );
 
       drawArea(e.data.start, e.data.end, colors);
